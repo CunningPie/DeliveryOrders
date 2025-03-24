@@ -1,0 +1,62 @@
+services:
+  backend:
+    image: ${DOCKER_REGISTRY-}backend
+    container_name: backend
+    build:
+      context: .
+      dockerfile: ./DeliveryOrders_Backend/DeliveryOrders/Dockerfile
+    environment:
+      - ASPNETCORE_Kestrel__Certificates__Default__Password=1234
+      - ASPNETCORE_Kestrel__Certificates__Default__Path=/app/certs/localhost.pem
+      - ASPNETCORE_Kestrel__Certificates__Default__KeyPath=/app/certs/localhost.key
+      - ASPNETCORE_HTTP_PORTS=9090
+      - ASPNETCORE_HTTPS_PORTS=9091
+      - ASPNETCORE_ENVIRONMENT=Docker
+      - ConnectionStrings__Database=Host=database;Port=5432;Database=delivery;Username=postgres;Password=postgres;
+    volumes:
+      - ./config/certs/:/app/certs
+    ports:
+      - 9090:9090
+      - 9091:9091
+    networks:
+      - delivery-orders-network  
+  
+  frontend:
+    image: ${DOCKER_REGISTRY-}frontend
+    container_name: frontend
+    build:
+      context: .
+      dockerfile: ./DeliveryOrders_Frontend/Dockerfile
+    ports:
+      - 5173:5173
+    environment:
+      - ENVIRONMENT=Docker
+      - BACKEND_HTTP_URL=http://backend:9090
+      - BACKEND_HTTPS_URL=https://backend:9091
+      - CERT_PATH=/app/certs/localhost.pem
+      - CERT_KEY_PATH=/app/certs/localhost.key
+    volumes:
+      - ./config/certs/:/app/certs
+    depends_on:
+      - backend
+    networks:
+      - delivery-orders-network  
+  
+  database:
+    image: postgres:latest
+    container_name: database
+    environment:
+      - POSTGRES_DB=delivery
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    volumes:
+      - ./.containers/postgresql:/var/lib/postgresql/data
+    ports:
+      - 5434:5432
+    networks:
+      - delivery-orders-network  
+
+networks:
+  delivery-orders-network:
+    name: delivery-orders-network 
+    driver: bridge   
